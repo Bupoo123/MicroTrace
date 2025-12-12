@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       userId,
       'IMPORT',
       'Import',
-      null,
+      undefined,
       `导入${importType === 'samples' ? '样本台账' : '入库登记'}，成功${successCount}条，失败${errorCount}条`
     )
 

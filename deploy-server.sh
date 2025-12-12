@@ -173,8 +173,23 @@ echo -e "${YELLOW}📦 检查 PM2...${NC}"
 if ! command -v pm2 &> /dev/null; then
     echo -e "${YELLOW}安装 PM2...${NC}"
     npm install -g pm2 --registry=https://registry.npmmirror.com
+    # 如果全局安装失败，尝试本地安装
+    if ! command -v pm2 &> /dev/null; then
+        echo -e "${YELLOW}全局安装失败，尝试本地安装...${NC}"
+        npm install pm2 --registry=https://registry.npmmirror.com
+        # 创建软链接或使用 npx
+        export PATH="$PATH:$(pwd)/node_modules/.bin"
+    fi
 fi
-echo -e "${GREEN}✅ PM2 已安装${NC}"
+
+# 验证 PM2
+if command -v pm2 &> /dev/null || [ -f "node_modules/.bin/pm2" ]; then
+    echo -e "${GREEN}✅ PM2 已安装${NC}"
+else
+    echo -e "${RED}❌ PM2 安装失败${NC}"
+    echo -e "${YELLOW}尝试手动安装: npm install -g pm2${NC}"
+    exit 1
+fi
 echo ""
 
 # 停止旧进程（如果存在）
@@ -185,13 +200,21 @@ echo ""
 # 启动应用
 echo -e "${YELLOW}🚀 启动应用...${NC}"
 cd "$APP_DIR"
-pm2 start npm --name "$APP_NAME" -- start
+
+# 使用 pm2 或 npx pm2
+if command -v pm2 &> /dev/null; then
+    PM2_CMD="pm2"
+else
+    PM2_CMD="npx pm2"
+fi
+
+$PM2_CMD start npm --name "$APP_NAME" -- start
 echo -e "${GREEN}✅ 应用已启动${NC}"
 echo ""
 
 # 保存 PM2 配置
 echo -e "${YELLOW}💾 保存 PM2 配置...${NC}"
-pm2 save
+$PM2_CMD save 2>/dev/null || echo -e "${YELLOW}⚠️  PM2 save 失败，跳过${NC}"
 echo ""
 
 # 显示状态
@@ -200,7 +223,7 @@ echo -e "${GREEN}  ✅ 部署完成！${NC}"
 echo "=========================================="
 echo ""
 echo "📊 应用状态："
-pm2 status "$APP_NAME"
+$PM2_CMD status "$APP_NAME" 2>/dev/null || echo -e "${YELLOW}⚠️  无法查看状态，请手动检查${NC}"
 echo ""
 echo "📝 默认账号："
 echo "  管理员: admin / 123456"
