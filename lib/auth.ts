@@ -27,7 +27,7 @@ export async function verifyPassword(
     id: user.id,
     username: user.username,
     name: user.name,
-    role: user.role,
+    role: user.role as UserRole,
   }
 }
 
