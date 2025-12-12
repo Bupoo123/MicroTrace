@@ -100,16 +100,30 @@ echo ""
 # 检查是否已有代码
 if [ -d ".git" ]; then
     echo -e "${YELLOW}🔄 更新代码...${NC}"
-    git pull origin main || echo -e "${YELLOW}⚠️  Git pull 失败，继续使用现有代码${NC}"
+    # 优先使用gitee，如果失败再尝试github
+    git pull gitee main 2>/dev/null || git pull origin main || echo -e "${YELLOW}⚠️  Git pull 失败，继续使用现有代码${NC}"
 else
     echo -e "${YELLOW}📥 克隆代码...${NC}"
     if [ -d ".git" ] || [ "$(ls -A $APP_DIR)" ]; then
         echo -e "${YELLOW}⚠️  目录不为空，跳过克隆${NC}"
     else
-        git clone https://github.com/Bupoo123/MicroTrace.git . || {
-            echo -e "${RED}❌ Git 克隆失败，请手动克隆代码${NC}"
-            exit 1
+        # 优先使用gitee镜像（国内访问快）
+        echo -e "${YELLOW}尝试从 Gitee 克隆（国内镜像）...${NC}"
+        git clone https://gitee.com/Bupoo123/MicroTrace.git . 2>/dev/null || {
+            echo -e "${YELLOW}Gitee 克隆失败，尝试 GitHub...${NC}"
+            git clone https://github.com/Bupoo123/MicroTrace.git . || {
+                echo -e "${RED}❌ Git 克隆失败${NC}"
+                echo -e "${YELLOW}请手动克隆代码：${NC}"
+                echo "  git clone https://gitee.com/Bupoo123/MicroTrace.git ."
+                echo "  或"
+                echo "  git clone https://github.com/Bupoo123/MicroTrace.git ."
+                exit 1
+            }
         }
+        # 添加gitee作为远程仓库（如果从github克隆）
+        if ! git remote | grep -q gitee; then
+            git remote add gitee https://gitee.com/Bupoo123/MicroTrace.git 2>/dev/null || true
+        fi
     fi
 fi
 echo ""
