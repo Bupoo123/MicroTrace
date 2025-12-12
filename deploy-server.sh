@@ -134,9 +134,9 @@ npm config set registry https://registry.npmmirror.com
 echo -e "${GREEN}✅ npm镜像源已配置${NC}"
 echo ""
 
-# 安装依赖
+# 安装依赖（生产环境也需要devDependencies来构建）
 echo -e "${YELLOW}📥 安装依赖...${NC}"
-npm install --production
+npm install
 echo -e "${GREEN}✅ 依赖安装完成${NC}"
 echo ""
 
