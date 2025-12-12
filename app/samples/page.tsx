@@ -12,6 +12,7 @@ interface Sample {
   unit: string | null
   source: string | null
   storageCondition: string | null
+  expiryMonths: number | null
   location: { code: string; name: string } | null
   patientAge: number | null
   patientSex: string | null
