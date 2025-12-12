@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // bcrypt hashed
+  name      String
+  role      String   // INPUT, AUDIT, QUERY, ADMIN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdDocuments Document[] @relation("DocumentCreator")
+  approvedDocuments Document[] @relation("DocumentApprover")
+  auditLogs        AuditLog[]
+  transactions     Transaction[]
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  parentId    String?
+  parent      Location? @relation("LocationTree", fields: [parentId], references: [id])
+  children    Location[] @relation("LocationTree")
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  samples SampleMaster[]
+}
+
+model SampleMaster {
+  id                String    @id @default(uuid())
+  sampleCode       String    @unique // 样本编码
+  name             String
+  type             String?   // 样本类型
+  spec             String?   // 规格
+  unit             String?   // 单位
+  source           String?   // 来源
+  storageCondition String?   // 存储条件
+  expiryMonths     Int?      // 有效期（月）
+  expiryDate       DateTime? // 有效期（日期）
+  locationId       String?
+  location         Location? @relation(fields: [locationId], references: [id])
+  
+  // 临床敏感字段
+  patientAge       Int?
+  patientSex       String?
+  diagnosis        String?
+  detectedPathogen String?
+  samplingDate     DateTime?
+  volumeMl         Float?    // 体积(ml)
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  documentLines    DocumentLine[]
+  transactions     Transaction[]
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  docNo       String   @unique // 单据号（自动生成）
+  type        String   // IN, OUT, RETURN, DISPOSE
+  status      String   @default("DRAFT") // DRAFT, SUBMIT, APPROVE, REJECT, CANCEL
+  description String?
+  
+  // 销毁相关字段
+  disposeReason    String? // 销毁原因
+  disposeMethod    String? // 处理方式
+  disposeOperator  String? // 操作人
+  disposeSupervisor String? // 监督人
+  disposeApprover  String? // 批准人
+  
+  // 返库关联原出库单
+  returnFromDocId  String?
+  returnFromDoc    Document? @relation("ReturnRelation", fields: [returnFromDocId], references: [id])
+  returnDocs       Document[] @relation("ReturnRelation")
+  
+  creatorId        String
+  creator          User      @relation("DocumentCreator", fields: [creatorId], references: [id])
+  approverId       String?
+  approver         User?     @relation("DocumentApprover", fields: [approverId], references: [id])
+  approvedAt       DateTime?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  lines            DocumentLine[]
+  transactions     Transaction[]
+}
+
+model DocumentLine {
+  id          String   @id @default(uuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sampleId    String
+  sample      SampleMaster @relation(fields: [sampleId], references: [id])
+  quantity    Float    // 数量
+  batchNo     String?  // 批号
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id])
+  sampleId     String
+  sample        SampleMaster @relation(fields: [sampleId], references: [id])
+  type         String   // IN, OUT, RETURN, DISPOSE
+  quantityDelta Float    // 正数表示增加，负数表示减少
+  batchNo      String?
+  remark       String?
+  operatorId   String?
+  operator     User?    @relation(fields: [operatorId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String   // CREATE, EDIT, SUBMIT, APPROVE, REJECT, CANCEL, IMPORT, EXPORT
+  entityType  String?  // 实体类型：SampleMaster, Document, Location等
+  entityId    String?  // 实体ID
+  description String?  // 操作描述
+  metadata    String?  // JSON格式的额外信息
+  createdAt   DateTime @default(now())
+}
