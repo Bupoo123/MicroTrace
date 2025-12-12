@@ -1,8 +1,5 @@
 import { prisma } from './prisma'
-
-export type DocumentType = 'IN' | 'OUT' | 'RETURN' | 'DISPOSE'
-export type DocumentStatus = 'DRAFT' | 'SUBMIT' | 'APPROVE' | 'REJECT' | 'CANCEL'
-export type TransactionType = 'IN' | 'OUT' | 'RETURN' | 'DISPOSE'
+import { TransactionTypes, type TransactionType, type DocumentType, type DocumentStatus } from './types'
 
 // 生成单据号
 export async function generateDocNo(type: DocumentType): Promise<string> {
@@ -113,12 +110,12 @@ export async function approveDocument(
   })
 
   // 生成库存流水
-  const transactionType: TransactionType = {
-    IN: 'IN',
-    OUT: 'OUT',
-    RETURN: 'RETURN',
-    DISPOSE: 'DISPOSE',
-  }[doc.type as DocumentType]
+  // 根据单据类型确定交易类型
+  const transactionType: TransactionType =
+    doc.type === 'IN' ? TransactionTypes.IN :
+    doc.type === 'OUT' ? TransactionTypes.OUT :
+    doc.type === 'RETURN' ? TransactionTypes.RETURN :
+    TransactionTypes.DISPOSE
 
   for (const line of doc.lines) {
     const quantityDelta =
@@ -130,7 +127,7 @@ export async function approveDocument(
       data: {
         documentId: docId,
         sampleId: line.sampleId,
-        type: transactionType as any,
+        type: transactionType,
         quantityDelta,
         batchNo: line.batchNo,
         remark: line.remark,
