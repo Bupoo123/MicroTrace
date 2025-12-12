@@ -24,20 +24,54 @@ PORT=5005
 # 检查 Node.js
 echo -e "${YELLOW}📦 检查 Node.js...${NC}"
 if ! command -v node &> /dev/null; then
-    echo -e "${RED}❌ 未检测到 Node.js，正在安装...${NC}"
+    echo -e "${YELLOW}未检测到 Node.js，正在安装...${NC}"
     
-    # 尝试使用 nvm
+    # 检测系统类型
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    else
+        OS=$(uname -s)
+    fi
+    
+    # 尝试使用 nvm（使用国内镜像）
     if [ -s "$HOME/.nvm/nvm.sh" ]; then
         source "$HOME/.nvm/nvm.sh"
+        # 设置nvm使用淘宝镜像
+        export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node/
         nvm install 20
         nvm use 20
     else
-        # 安装 nvm
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install 20
-        nvm use 20
+        echo -e "${YELLOW}安装 nvm (使用国内镜像)...${NC}"
+        # 使用gitee镜像安装nvm
+        export NVM_SOURCE=https://gitee.com/mirrors/nvm.git
+        curl -o- https://gitee.com/mirrors/nvm/raw/master/install.sh | bash || {
+            # 如果gitee也失败，尝试直接使用包管理器
+            echo -e "${YELLOW}NVM安装失败，尝试使用系统包管理器...${NC}"
+            if command -v apt-get &> /dev/null; then
+                # Ubuntu/Debian
+                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                sudo apt-get install -y nodejs
+            elif command -v yum &> /dev/null; then
+                # CentOS/RHEL
+                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                sudo yum install -y nodejs
+            else
+                echo -e "${RED}❌ 无法自动安装 Node.js，请手动安装${NC}"
+                echo "请访问: https://nodejs.org/ 或使用包管理器安装"
+                exit 1
+            fi
+        }
+        
+        # 如果nvm安装成功，继续配置
+        if [ -s "$HOME/.nvm/nvm.sh" ]; then
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            # 设置nvm使用淘宝镜像
+            export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node/
+            nvm install 20
+            nvm use 20
+        fi
     fi
 fi
 
@@ -80,6 +114,12 @@ else
 fi
 echo ""
 
+# 配置npm使用国内镜像
+echo -e "${YELLOW}⚙️  配置npm镜像源...${NC}"
+npm config set registry https://registry.npmmirror.com
+echo -e "${GREEN}✅ npm镜像源已配置${NC}"
+echo ""
+
 # 安装依赖
 echo -e "${YELLOW}📥 安装依赖...${NC}"
 npm install --production
@@ -118,7 +158,7 @@ echo ""
 echo -e "${YELLOW}📦 检查 PM2...${NC}"
 if ! command -v pm2 &> /dev/null; then
     echo -e "${YELLOW}安装 PM2...${NC}"
-    npm install -g pm2
+    npm install -g pm2 --registry=https://registry.npmmirror.com
 fi
 echo -e "${GREEN}✅ PM2 已安装${NC}"
 echo ""
